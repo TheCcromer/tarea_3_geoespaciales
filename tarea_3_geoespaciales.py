@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
 import folium
+from streamlit_folium import st_folium
 from folium.plugins import TimestampedGeoJson
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -16,6 +17,17 @@ pd.set_option('display.float_format', '{:,.2f}'.format)
 
 
 #Funciones
+
+def corregir_texto(texto):
+    try:
+        return texto.encode('latin1').decode('utf-8')
+    except Exception:
+        return texto
+
+def remove_accents(input_str):
+    nkfd_form = unicodedata.normalize('NFKD', input_str)
+    only_ascii = nkfd_form.encode('ASCII', 'ignore')
+    return only_ascii.decode('utf-8')
 
 def carga_contaminante(contaminante):
   df = pd.read_csv(f'data/2024{contaminante}.csv')
@@ -72,17 +84,6 @@ def convertir_geopandas(dict_contaminantes, contaminante):
     crs="EPSG:4326"
   )
 
-def obtener_trimestre(fecha):
-  mes = fecha.month
-  if mes in [1, 2, 3]:
-    return 'Trimestre I'
-  elif mes in [4, 5, 6]:
-    return 'Trimestre II'
-  elif mes in [7, 8, 9]:
-    return 'Trimestre III'
-  else:
-    return 'Trimestre IV'
-
 def agrupar_por_dia(dict_contaminantes,contaminante):
   dict_contaminantes[contaminante] = (
     dict_contaminantes[contaminante]
@@ -127,12 +128,10 @@ gdf_total = gpd.GeoDataFrame(pd.concat(dict_contaminantes.values(), ignore_index
 #Carga de Municipios CDMX
 
 mx = gpd.read_file("data/mun21gw/mun21gw.shp")
-def remove_accents(input_str):
-    import unicodedata
-    nkfd_form = unicodedata.normalize('NFKD', input_str)
-    only_ascii = nkfd_form.encode('ASCII', 'ignore')
-    return only_ascii.decode('utf-8')
+
+
 mx['NOM_ENT'] = mx['NOM_ENT'].apply(remove_accents)
+
 
 cdmx = mx[(mx['NOM_ENT'] == 'Ciudad de MAxico') | (mx['NOM_ENT'] == 'MAxico')]
 
@@ -143,6 +142,7 @@ promedios_anuales = (
     .groupby(['ESTACION', 'TIPO_CONTAMINANTE', 'latitud', 'longitud'], as_index=False)['AQI']
     .mean()
 )
+
 aqi_anual_estaciones = (
     promedios_anuales.loc[promedios_anuales.groupby('ESTACION')['AQI'].idxmax()]
     .reset_index(drop=True)
@@ -158,10 +158,10 @@ aqi_cdmx = gpd.GeoDataFrame(
 join = gpd.sjoin(aqi_cdmx, cdmx, how="left", predicate="within")
 
 join = join[['ESTACION','NOM_MUN','TIPO_CONTAMINANTE','AQI']]
-
+join['NOM_MUN'] = join['NOM_MUN'].apply(corregir_texto)
 #Filtrado
 
-# Obtener la lista de países únicos
+# Obtener la lista de municipios únicos
 lista_municipios = join['NOM_MUN'].unique().tolist()
 lista_municipios.sort()
 
@@ -178,13 +178,20 @@ municipio_seleccionado = st.sidebar.selectbox(
 
 if municipio_seleccionado != 'Todos':
     # Filtrar los datos para el país seleccionado
-    datos_filtrados = join[join['País'] == municipio_seleccionado]
+    datos_filtrados = join[join['NOM_MUN'] == municipio_seleccionado]
 else:
     # No aplicar filtro
     datos_filtrados = join.copy()
 
 # Mostrar la tabla
-st.subheader('AQI promedio anual de contaminantes por municipio')
+st.subheader('AQI (Air Quality Index) Promedio Anual por Municipio de la Ciudad México')
+datos_filtrados = datos_filtrados.rename(columns={
+    'ESTACION': 'Estación',
+    'NOM_MUN': 'Municipio',
+    'TIPO_CONTAMINANTE': 'Contaminante Prevalente',
+    'AQI': 'Índice de Calidad del Aire'
+})
+
 st.dataframe(datos_filtrados, hide_index=True)
 
 
@@ -196,7 +203,7 @@ fig = px.bar(
     aqi_prom,
     x='TIPO_CONTAMINANTE',
     y='AQI',
-    title='Suma de población por continente',
+    title='Valores promedio de AQI obtenidos por contaminante',
     labels={
         'TIPO_CONTAMINANTE': 'Contaminante',
         'AQI': 'AQI Promedio'
@@ -210,10 +217,6 @@ fig.update_yaxes(tickformat=",d")
 
 # Atributos globales de la figura
 fig.update_layout(
-    title=dict(
-        x=0.5,  # Centrar el título
-        font=dict(size=20)
-    ),
     xaxis_title=dict(
         font=dict(size=16)
     ),
@@ -222,20 +225,38 @@ fig.update_layout(
     )
 )
 # Despliegue del gráfico
-fig.show()
+st.subheader("Gráficos relacionados al Índice de Calidad del Aire ")
+st.plotly_chart(fig, use_container_width=True)
+
+# Promedio de AQI por municipio (Bar Chart)
+bar_chart = px.bar(
+    datos_filtrados.groupby('Municipio')['Índice de Calidad del Aire'].mean().reset_index(),
+    x='Municipio',
+    y='Índice de Calidad del Aire',
+    title='Promedio de AQI por Municipio',
+    labels={'Municipio': 'Municipio', 'Índice de Calidad del Aire': 'AQI Promedio'},
+)
+st.plotly_chart(bar_chart, use_container_width=True)
 
 
 #Mapa Interactivo CDMX
 
-# HTML generado guardado en output/aqi_cdmx.html
+aqi_mapa = aqi_cdmx.rename(columns={
+    "ESTACION": "Estación",
+    "AQI": "Índice de Calidad del Aire",
+    "TIPO_CONTAMINANTE": "Contaminante Prevalente"
+})
 
-aqi_cdmx.explore(
-    column="AQI",              # Columna que define el color
+mapa = aqi_mapa.explore(
+    column="Índice de Calidad del Aire",  # Columna que define el color
     cmap="RdYlGn_r",
-    legend=True,               # Muestra barra de colores
+    legend=True, # Muestra barra de colores
     marker_kwds=dict(radius=8, fillOpacity=0.8),  # Opciones del marcador
-    tooltip=["ESTACION", "AQI", "TIPO_CONTAMINANTE"],  # Info al pasar el mouse
+    tooltip=["Estación", "Índice de Calidad del Aire", "Contaminante Prevalente"],  # Info al pasar el mouse
 )
 
+# Mostrar el mapa dentro de Streamlit
+st.subheader("Mapa Interactivo del AQI por Estación")
+st_data = st_folium(mapa, width=1000, height=600)
 
 
