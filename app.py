@@ -238,6 +238,34 @@ bar_chart = px.bar(
 )
 st.plotly_chart(bar_chart, use_container_width=True)
 
+# Boxplot: ver la dispersión de valores de AQI por cada contaminante
+
+box_plot = px.box(
+    datos_filtrados,
+    x='Contaminante Prevalente',
+    y='Índice de Calidad del Aire',
+    title='Distribución del AQI por Contaminante'
+)
+st.plotly_chart(box_plot, use_container_width=True)
+
+# Bar chart ordenado por estaciones
+
+s_bar_chart = px.bar(
+    datos_filtrados.groupby('Estación')['Índice de Calidad del Aire'].mean().sort_values(ascending=False).reset_index(),
+    x='Estación',
+    y='Índice de Calidad del Aire',
+    title='Estaciones con mayor AQI promedio'
+)
+st.plotly_chart(s_bar_chart, use_container_width=True)
+
+# Pie chart por contaminantes prevalentes
+pie_chart = px.pie(
+    datos_filtrados,
+    names='Contaminante Prevalente',
+    title='Proporción de Contaminantes Prevalentes'
+)
+st.plotly_chart(pie_chart)
+
 
 #Mapa Interactivo CDMX
 
