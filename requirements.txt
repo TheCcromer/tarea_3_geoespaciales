@@ -1,0 +1,8 @@
+geopandas
+plotly
+seaborn
+streamlit
+streamlit-folium 
+folium
+unidecode 
+unicodedata
