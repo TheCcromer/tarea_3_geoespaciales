@@ -10,10 +10,12 @@ import matplotlib.pyplot as plt
 import streamlit as st
 import unidecode
 import unicodedata
-
+from pathlib import Path
 
 #Configuración 
 pd.set_option('display.float_format', '{:,.2f}'.format)
+# Obtener ruta del proyecto
+BASE_DIR = Path(__file__).resolve().parent
 
 
 #Funciones
@@ -30,7 +32,8 @@ def remove_accents(input_str):
     return only_ascii.decode('utf-8')
 
 def carga_contaminante(contaminante):
-  df = pd.read_csv(f'data/2024{contaminante}.csv')
+  csv_path = BASE_DIR / "data" / f'2024{contaminante}.csv'
+  df = pd.read_csv(csv_path)
   cols_to_keep = ['FECHA', 'HORA'] + cdmx_stations
   df = df[[col for col in cols_to_keep if col in df.columns]] # Filtracion de unicamente estaciones importantes
   return df
@@ -111,10 +114,10 @@ cdmx_stations = [
 
 #Calculos
 
-coordenadas_est = pd.read_csv('data/cat_estacion.csv', encoding='latin-1')
+coordenadas_est = pd.read_csv(BASE_DIR / "data" / "cat_estacion.csv", encoding='latin-1')
 coordenadas_est = coordenadas_est.rename(columns={'cve_estac': 'ESTACION'})
 coordenadas_est = coordenadas_est[['ESTACION','longitud', 'latitud']]
-rangos_aqi = pd.read_csv('data/aqi_breakpoints.csv')
+rangos_aqi = pd.read_csv(BASE_DIR / "data" / "aqi_breakpoints.csv")
 rangos_aqi = rangos_aqi[['TIPO_CONTAMINANTE', 'AQI_CATEGORY', 'Low_AQI','High_AQI','Low_Breakpoint','High_Breakpoint']]
 for contaminante in lista_contaminantes:
   dict_contaminantes[contaminante] = carga_contaminante(contaminante)
@@ -127,7 +130,7 @@ gdf_total = gpd.GeoDataFrame(pd.concat(dict_contaminantes.values(), ignore_index
 
 #Carga de Municipios CDMX
 
-mx = gpd.read_file("data/mun21gw/mun21gw.shp")
+mx = gpd.read_file( BASE_DIR / "data" / "mun21gw" / "mun21gw.shp")
 
 
 mx['NOM_ENT'] = mx['NOM_ENT'].apply(remove_accents)
