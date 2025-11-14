@@ -2,10 +2,9 @@ geopandas
 plotly
 seaborn
 streamlit
-streamlit-folium
+streamlit-folium 
 folium
 unidecode
 pandas
 h5py
 matplotlib
-mapclassify
