@@ -170,16 +170,16 @@ aqi_mapa = aqi_cdmx.rename(columns={
     "AQI": "Índice de Calidad del Aire",
     "TIPO_CONTAMINANTE": "Contaminante Prevalente"
 })
-mapa = aqi_mapa.explore(
-    column="Índice de Calidad del Aire",  # Columna que define el color
-    cmap="RdYlGn_r",
-    legend=True, # Muestra barra de colores
-    marker_kwds=dict(radius=8, fillOpacity=0.8),  # Opciones del marcador
-    tooltip=["Estación", "Índice de Calidad del Aire", "Contaminante Prevalente"],  # Info al pasar el mouse
-)
-# Mostrar el mapa dentro de Streamlit
-st.subheader("Mapa Interactivo del AQI por Estación")
-st_data = st_folium(mapa, width=1000, height=600)
+# mapa = aqi_mapa.explore(
+#     column="Índice de Calidad del Aire",  # Columna que define el color
+#     cmap="RdYlGn_r",
+#     legend=True, # Muestra barra de colores
+#     marker_kwds=dict(radius=8, fillOpacity=0.8),  # Opciones del marcador
+#     tooltip=["Estación", "Índice de Calidad del Aire", "Contaminante Prevalente"],  # Info al pasar el mouse
+# )
+# # Mostrar el mapa dentro de Streamlit
+# st.subheader("Mapa Interactivo del AQI por Estación")
+# st_data = st_folium(mapa, width=1000, height=600)
 
 
 #Mapa interactivo raster
