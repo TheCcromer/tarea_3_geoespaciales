@@ -14,6 +14,17 @@ import unicodedata
 from pathlib import Path
 import h5py
 
+# Estructuras de datos
+lista_contaminantes = ["CO", "NO2", "O3", "PM25", "SO2"]
+
+cdmx_stations = [
+    'ACO', 'AJM', 'BJU', 'CAM', 'CCA', 'CHO', 'CUA', 'FAC', 'HGM',
+    'INN', 'IZT', 'LLA', 'LPR', 'MER', 'MGH', 'MPA', 'PED', 'SAG',
+    'SAC', 'SFE', 'SJA', 'TAH', 'TLI', 'UAX', 'UIZ'
+]
+
+dict_contaminantes = {} # Para guardar los df de cada uno de los contaminantes
+
 def leer_contaminante_raster(path, variable_name, qa_threshold=0.5):
     
     with h5py.File(path, "r") as f:
@@ -113,15 +124,17 @@ def agrupar_por_dia(dict_contaminantes,contaminante):
     )
 
 #Calculos
+def cargar_dict_contaminantes():
+    coordenadas_est = pd.read_csv(BASE_DIR / "data" / "cat_estacion.csv", encoding='latin-1')
+    coordenadas_est = coordenadas_est.rename(columns={'cve_estac': 'ESTACION'})
+    coordenadas_est = coordenadas_est[['ESTACION','longitud', 'latitud']]
+    rangos_aqi = pd.read_csv(BASE_DIR / "data" / "aqi_breakpoints.csv")
+    rangos_aqi = rangos_aqi[['TIPO_CONTAMINANTE', 'AQI_CATEGORY', 'Low_AQI','High_AQI','Low_Breakpoint','High_Breakpoint']]
 
-coordenadas_est = pd.read_csv(BASE_DIR / "data" / "cat_estacion.csv", encoding='latin-1')
-coordenadas_est = coordenadas_est.rename(columns={'cve_estac': 'ESTACION'})
-coordenadas_est = coordenadas_est[['ESTACION','longitud', 'latitud']]
-rangos_aqi = pd.read_csv(BASE_DIR / "data" / "aqi_breakpoints.csv")
-rangos_aqi = rangos_aqi[['TIPO_CONTAMINANTE', 'AQI_CATEGORY', 'Low_AQI','High_AQI','Low_Breakpoint','High_Breakpoint']]
-
-for contaminante in lista_contaminantes:
-  dict_contaminantes[contaminante] = carga_contaminante(contaminante)
-  transformacion_df(dict_contaminantes,contaminante,coordenadas_est)
-  calculo_AQI(dict_contaminantes,contaminante,rangos_aqi)
-  agrupar_por_dia(dict_contaminantes,contaminante)
+    for contaminante in lista_contaminantes:
+        dict_contaminantes[contaminante] = carga_contaminante(contaminante)
+        transformacion_df(dict_contaminantes,contaminante,coordenadas_est)
+        calculo_AQI(dict_contaminantes,contaminante,rangos_aqi)
+        agrupar_por_dia(dict_contaminantes,contaminante)
+    
+    pd.concat(dict_contaminantes.values(), ignore_index=True).to_csv("data/valores_contaminantes_por_estaciones_cdmx.csv")

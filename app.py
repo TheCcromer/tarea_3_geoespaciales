@@ -12,6 +12,7 @@ import streamlit as st
 from pathlib import Path
 from util import corregir_acentos, remover_acentos
 from functools import reduce
+from data_generation import leer_contaminante_raster
 
 
 # Configuración 
@@ -20,17 +21,6 @@ pd.set_option('display.float_format', '{:,.2f}'.format)
 # Obtener ruta del proyecto
 BASE_DIR = Path(__file__).resolve().parent
 AQI_DATA_PATH = BASE_DIR / "data" / "valores_contaminantes_por_estaciones_cdmx.csv"
-
-# Estructuras de datos
-lista_contaminantes = ["CO", "NO2", "O3", "PM25", "SO2"]
-
-dict_contaminantes = {} # Para guardar los df de cada uno de los contaminantes
-
-cdmx_stations = [
-    'ACO', 'AJM', 'BJU', 'CAM', 'CCA', 'CHO', 'CUA', 'FAC', 'HGM',
-    'INN', 'IZT', 'LLA', 'LPR', 'MER', 'MGH', 'MPA', 'PED', 'SAG',
-    'SAC', 'SFE', 'SJA', 'TAH', 'TLI', 'UAX', 'UIZ'
-]
 
 gdf_total = gpd.GeoDataFrame(pd.read_csv(AQI_DATA_PATH, encoding='latin-1'))
 
