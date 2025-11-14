@@ -4,7 +4,6 @@ seaborn
 streamlit
 streamlit-folium 
 folium
-unidecode 
-unicodedata
+unidecode
 pandas
 h5py

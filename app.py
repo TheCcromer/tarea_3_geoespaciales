@@ -26,11 +26,11 @@ gdf_total = gpd.GeoDataFrame(pd.read_csv(AQI_DATA_PATH, encoding='latin-1'))
 
 #Archivos raster
 archivos = {
-    "CO":  ("data/CO.nc",  "carbonmonoxide_total_column"),
-    "NO2": ("data/NO2.nc", "nitrogendioxide_tropospheric_column"),
-    "SO2": ("data/SO2.nc", "sulfurdioxide_total_vertical_column"),
-    "O3":  ("data/O3.nc",  "ozone_total_vertical_column"),
-    "AER": ("data/AER.nc","aerosol_mid_pressure")
+    "CO":  (BASE_DIR / "data" / "CO.nc",  "carbonmonoxide_total_column"),
+    "NO2": (BASE_DIR / "data" / "NO2.nc", "nitrogendioxide_tropospheric_column"),
+    "SO2": (BASE_DIR / "data" / "SO2.nc", "sulfurdioxide_total_vertical_column"),
+    "O3":  (BASE_DIR / "data" / "O3.nc",  "ozone_total_vertical_column"),
+    "AER": (BASE_DIR / "data" / "AER.nc","aerosol_mid_pressure")
 }
 
 gdfs = []
