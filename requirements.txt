@@ -6,3 +6,5 @@ streamlit-folium
 folium
 unidecode 
 unicodedata
+pandas
+h5py

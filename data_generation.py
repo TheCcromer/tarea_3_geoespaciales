@@ -12,8 +12,37 @@ import streamlit as st
 import unidecode
 import unicodedata
 from pathlib import Path
+import h5py
+
+def leer_contaminante_raster(path, variable_name, qa_threshold=0.5):
+    
+    with h5py.File(path, "r") as f:
+        name = "PRODUCT/" + variable_name
+        values = f[name][:].flatten()
+        lat = f["PRODUCT/latitude"][:].flatten()
+        lon = f["PRODUCT/longitude"][:].flatten()
+        qa = f["PRODUCT/qa_value"][:].flatten()
 
 
+    df = pd.DataFrame({
+        "lat": lat,
+        "lon": lon,
+        variable_name: values,
+        "qa_value": qa
+    })
+
+    # Filtrar QA
+    df = df[df["qa_value"] >= qa_threshold]
+
+    # Convertir a GeoDataFrame
+    gdf = gpd.GeoDataFrame(
+        df,
+        geometry=gpd.points_from_xy(df["lon"], df["lat"]),
+        crs="EPSG:4326"
+    )
+
+    return gdf
+  
 def carga_contaminante(contaminante):
   csv_path = BASE_DIR / "data" / f'2024{contaminante}.csv'
   df = pd.read_csv(csv_path)

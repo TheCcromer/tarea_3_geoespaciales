@@ -5,11 +5,14 @@ import plotly.express as px
 import folium
 from streamlit_folium import st_folium
 from folium.plugins import TimestampedGeoJson
+from folium.plugins import HeatMap
 import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 from pathlib import Path
 from util import corregir_acentos, remover_acentos
+from functools import reduce
+
 
 # Configuración 
 pd.set_option('display.float_format', '{:,.2f}'.format)
@@ -30,6 +33,17 @@ cdmx_stations = [
 ]
 
 gdf_total = gpd.GeoDataFrame(pd.read_csv(AQI_DATA_PATH, encoding='latin-1'))
+
+#Archivos raster
+archivos = {
+    "CO":  ("data/CO.nc",  "carbonmonoxide_total_column"),
+    "NO2": ("data/NO2.nc", "nitrogendioxide_tropospheric_column"),
+    "SO2": ("data/SO2.nc", "sulfurdioxide_total_vertical_column"),
+    "O3":  ("data/O3.nc",  "ozone_total_vertical_column"),
+    "AER": ("data/AER.nc","aerosol_mid_pressure")
+}
+
+gdfs = []
 
 
 # Carga de Municipios CDMX
@@ -178,3 +192,61 @@ st.subheader("Mapa Interactivo del AQI por Estación")
 st_data = st_folium(mapa, width=1000, height=600)
 
 
+#Mapa interactivo raster
+for nombre, (path, var) in archivos.items():
+    gdf = leer_contaminante_raster(path, var)
+    gdf = gpd.sjoin(gdf, cdmx, predicate="within")  # quedarse solo con CDMX
+    gdfs.append(gdf[["lon", "lat", var]])
+
+gdf_final = reduce(lambda left, right: pd.merge(left, right, on=["lon","lat"], how="outer"), gdfs)
+
+gdf_final = gpd.GeoDataFrame(
+    gdf_final,
+    geometry=gpd.points_from_xy(gdf_final["lon"], gdf_final["lat"]),
+    crs="EPSG:4326"
+)
+
+gdf_final["total_contaminacion"] = gdf_final[
+    ["carbonmonoxide_total_column",
+     "nitrogendioxide_tropospheric_column",
+     "sulfurdioxide_total_vertical_column",
+     "ozone_total_vertical_column",
+     "aerosol_mid_pressure"]
+].sum(axis=1)
+
+
+gdf_final["promedio"] = gdf_final[
+    ["carbonmonoxide_total_column",
+     "nitrogendioxide_tropospheric_column",
+     "sulfurdioxide_total_vertical_column",
+     "ozone_total_vertical_column",
+     "aerosol_mid_pressure"]
+].mean(axis=1)
+
+
+gdf_final["indice_normalizado"] = (
+    (gdf_final["total_contaminacion"] - gdf_final["total_contaminacion"].min()) /
+    (gdf_final["total_contaminacion"].max() - gdf_final["total_contaminacion"].min())
+)
+
+
+mapa_raster = folium.Map(location=[19.4326, -99.1332], zoom_start=10)
+
+# Preparar datos para heatmap
+heat_data = [
+    [row['lat'], row['lon'], row['indice_normalizado']]
+    for _, row in gdf_final.dropna(subset=["indice_normalizado"]).iterrows()
+]
+
+# Agregar heatmap
+HeatMap(
+    heat_data,
+    radius=12,   # tamaño del punto
+    blur=15,
+    max_zoom=1
+).add_to(mapa_raster)
+
+
+# Mostrar el mapa dentro de Streamlit
+st.subheader("Mapa Interactivo del AQI de los contaminantes CO, NO2, SO2, O3, AER")
+st_data = st_folium(mapa_raster, width=1000, height=600)
