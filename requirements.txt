@@ -8,4 +8,3 @@ unidecode
 pandas
 h5py
 matplotlib
-matclassify
