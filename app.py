@@ -1,10 +1,14 @@
 import geopandas as gpd
 import pandas as pd
+import matplotlib.pyplot as plt
 import plotly.express as px
 import folium
 from streamlit_folium import st_folium
-from folium.plugins import MiniMap, MousePosition, Fullscreen
+from folium.plugins import MousePosition
+from folium.plugins import TimestampedGeoJson
 from folium.plugins import HeatMap
+import seaborn as sns
+import matplotlib.pyplot as plt
 import streamlit as st
 from pathlib import Path
 from util import corregir_acentos, remover_acentos
@@ -12,13 +16,16 @@ from functools import reduce
 from data_generation import leer_contaminante_raster
 import branca.colormap as cm
 
-# ---------------------------
-# Configuración y rutas
-# ---------------------------
+# Configuración 
 pd.set_option('display.float_format', '{:,.2f}'.format)
+
+# Obtener ruta del proyecto
 BASE_DIR = Path(__file__).resolve().parent
 AQI_DATA_PATH = BASE_DIR / "data" / "valores_contaminantes_por_estaciones_cdmx.csv"
 
+gdf_total = gpd.GeoDataFrame(pd.read_csv(AQI_DATA_PATH, encoding='latin-1'))
+
+#Archivos raster
 archivos = {
     "CO":  (BASE_DIR / "data" / "CO.nc",  "carbonmonoxide_total_column"),
     "NO2": (BASE_DIR / "data" / "NO2.nc", "nitrogendioxide_tropospheric_column"),
@@ -27,65 +34,23 @@ archivos = {
     "AER": (BASE_DIR / "data" / "AER.nc","aerosol_mid_pressure")
 }
 
-# ---------------------------
-# Helpers con caching
-# ---------------------------
-@st.cache_data
-def cargar_aqi_csv(path):
-    df = pd.read_csv(path, encoding='latin-1')
-    # Normalizar nombres de columnas por si acaso
-    df.columns = [c.strip() for c in df.columns]
-    return gpd.GeoDataFrame(df)
+gdfs = []
 
-@st.cache_data
-def cargar_municipios(shp_path):
-    mx = gpd.read_file(shp_path)
-    mx['NOM_ENT'] = mx['NOM_ENT'].apply(remover_acentos)
-    cdmx = mx[(mx['NOM_ENT'] == 'Ciudad de MAxico') | (mx['NOM_ENT'] == 'MAxico')]
-    return cdmx
 
-@st.cache_data
-def cargar_rasters_filtrados(archivos_dict, cdmx_gdf):
-    """
-    Lee cada raster (.nc) con tu función leer_contaminante_raster,
-    hace spatial join con cdmx y devuelve lista de dataframes con lon/lat/valor.
-    """
-    gdfs_local = []
-    for nombre, (path, var) in archivos_dict.items():
-        try:
-            gdf = leer_contaminante_raster(path, var)
-            # Asegurar columnas lon/lat existen
-            if 'lon' not in gdf.columns or 'lat' not in gdf.columns:
-                # intenta columnas alternativas
-                if 'longitude' in gdf.columns and 'latitude' in gdf.columns:
-                    gdf = gdf.rename(columns={'longitude':'lon','latitude':'lat'})
-                else:
-                    st.warning(f"No se encontraron lon/lat en {nombre} -> se omite")
-                    continue
-            # Quedarse solo con CDMX mediante spatial join (puede ser costoso)
-            gdf = gpd.sjoin(gdf, cdmx_gdf, predicate="within", how="inner")
-            # Seleccionar solo lon, lat, variable
-            gdfs_local.append(gdf[['lon', 'lat', var]])
-        except Exception as e:
-            st.warning(f"Error procesando {nombre}: {e}")
-    return gdfs_local
+# Carga de Municipios CDMX
 
-# ---------------------------
-# Carga principal de datos
-# ---------------------------
-gdf_total = cargar_aqi_csv(AQI_DATA_PATH)  # GeoDataFrame con AQI por estaciones
-cdmx = cargar_municipios(BASE_DIR / "data" / "mun21gw" / "mun21gw.shp")
+mx = gpd.read_file( BASE_DIR / "data" / "mun21gw" / "mun21gw.shp")
+mx['NOM_ENT'] = mx['NOM_ENT'].apply(remover_acentos)
+cdmx = mx[(mx['NOM_ENT'] == 'Ciudad de MAxico') | (mx['NOM_ENT'] == 'MAxico')]
 
-# ---------------------------
-# Procesamiento de AQI por estación (promedio anual)
-# ---------------------------
+#Obtención de promedios Anuales
+
 promedios_anuales = (
     gdf_total
     .groupby(['ESTACION', 'TIPO_CONTAMINANTE', 'latitud', 'longitud'], as_index=False)['AQI']
     .mean()
 )
 
-# Para cada estación tomar el contaminante que reportó el AQI máximo (estación representativa)
 aqi_anual_estaciones = (
     promedios_anuales.loc[promedios_anuales.groupby('ESTACION')['AQI'].idxmax()]
     .reset_index(drop=True)
@@ -97,153 +62,207 @@ aqi_cdmx = gpd.GeoDataFrame(
     crs="EPSG:4326"
 )
 
-# Spatial join para asignar municipio
+# Spatial join: asignar cada punto de estación al polígono donde se encuentra
 df_con_municipios = gpd.sjoin(aqi_cdmx, cdmx, how="left", predicate="within")
+
 df_con_municipios = df_con_municipios[['ESTACION','NOM_MUN','TIPO_CONTAMINANTE','AQI']]
 df_con_municipios['NOM_MUN'] = df_con_municipios['NOM_MUN'].apply(corregir_acentos)
 
-# Filtrado por municipio (UI)
-lista_municipios = sorted(df_con_municipios['NOM_MUN'].dropna().unique().tolist())
+#Filtrado
+lista_municipios = df_con_municipios['NOM_MUN'].unique().tolist()
+lista_municipios.sort()
 opciones_municipios = ['Todos'] + lista_municipios
-municipio_seleccionado = st.sidebar.selectbox('Selecciona un municipio', opciones_municipios)
+
+# Crear el selectbox en la barra lateral
+municipio_seleccionado = st.sidebar.selectbox(
+    'Selecciona un municipio',
+    opciones_municipios
+)
+
+# ----- Filtrar datos según la selección -----
 
 if municipio_seleccionado != 'Todos':
+    # Filtrar los datos para el país seleccionado
     datos_filtrados = df_con_municipios[df_con_municipios['NOM_MUN'] == municipio_seleccionado]
 else:
+    # No aplicar filtro
     datos_filtrados = df_con_municipios.copy()
 
-# Mostrar tabla
-st.subheader('AQI (Air Quality Index) — Promedio Anual por Municipio')
-datos_filtrados_display = datos_filtrados.rename(columns={
+# Mostrar la tabla
+st.subheader('AQI (Air Quality Index) Promedio Anual por Municipio de la Ciudad México')
+datos_filtrados = datos_filtrados.rename(columns={
     'ESTACION': 'Estación',
     'NOM_MUN': 'Municipio',
     'TIPO_CONTAMINANTE': 'Contaminante Prevalente',
     'AQI': 'Índice de Calidad del Aire'
 })
-st.dataframe(datos_filtrados_display, hide_index=True)
+st.dataframe(datos_filtrados, hide_index=True)
 
-# ---------------------------
-# Gráficos interactivos (Plotly)
-# ---------------------------
-st.subheader("Gráficos relacionados al Índice de Calidad del Aire")
+
+#Gráfico de Barras para valores de AQI por contaminante
 
 aqi_prom = gdf_total.groupby('TIPO_CONTAMINANTE')['AQI'].mean().reset_index()
-fig = px.bar(aqi_prom, x='TIPO_CONTAMINANTE', y='AQI',
-             title='Valores promedio de AQI por contaminante',
-             labels={'TIPO_CONTAMINANTE': 'Contaminante', 'AQI': 'AQI Promedio'})
+fig = px.bar(
+    aqi_prom,
+    x='TIPO_CONTAMINANTE',
+    y='AQI',
+    title='Valores promedio de AQI obtenidos por contaminante',
+    labels={
+        'TIPO_CONTAMINANTE': 'Contaminante',
+        'AQI': 'AQI Promedio'
+    },
+    width=1000,   # Ancho de la figura en píxeles
+    height=600    # Alto de la figura en píxeles
+)
+
+# Actualizar el formato del eje y evitar notación científica
 fig.update_yaxes(tickformat=",d")
+
+# Atributos globales de la figura
+fig.update_layout(
+    xaxis_title=dict(
+        font=dict(size=16)
+    ),
+    yaxis_title=dict(
+        font=dict(size=16)
+    )
+)
+# Despliegue del gráfico
+st.subheader("Gráficos relacionados al Índice de Calidad del Aire ")
 st.plotly_chart(fig, use_container_width=True)
 
-# Top estaciones y otros gráficos
-top_municipios = datos_filtrados.sort_values("AQI", ascending=False)
-fig2 = px.bar(top_municipios, x="ESTACION", y="AQI", color="TIPO_CONTAMINANTE",
-              title="Estaciones con mayor AQI promedio")
-st.plotly_chart(fig2)
+# Bar Chart - Estaciones con mayor AQI promedio
+top_municipios = datos_filtrados.sort_values("Índice de Calidad del Aire", ascending=False)
+fig = px.bar(top_municipios, x="Estación", y="Índice de Calidad del Aire", color="Contaminante Prevalente",
+             title="Estaciones con mayor AQI promedio")
+st.plotly_chart(fig)
 
-bar_chart = px.bar(datos_filtrados.groupby('NOM_MUN')['AQI'].mean().reset_index(),
-                   x='NOM_MUN', y='AQI', title='Promedio de AQI por Municipio',
-                   labels={'NOM_MUN': 'Municipio', 'AQI': 'AQI Promedio'})
+# Promedio de AQI por municipio (Bar Chart)
+bar_chart = px.bar(
+    datos_filtrados.groupby('Municipio')['Índice de Calidad del Aire'].mean().reset_index(),
+    x='Municipio',
+    y='Índice de Calidad del Aire',
+    title='Promedio de AQI por Municipio',
+    labels={'Municipio': 'Municipio', 'Índice de Calidad del Aire': 'AQI Promedio'},
+)
 st.plotly_chart(bar_chart, use_container_width=True)
 
-box_plot = px.box(datos_filtrados, x='TIPO_CONTAMINANTE', y='AQI', title='Distribución del AQI por Contaminante')
+# Boxplot: ver la dispersión de valores de AQI por cada contaminante
+box_plot = px.box(
+    datos_filtrados,
+    x='Contaminante Prevalente',
+    y='Índice de Calidad del Aire',
+    title='Distribución del AQI por Contaminante'
+)
 st.plotly_chart(box_plot, use_container_width=True)
 
-pie_chart = px.pie(datos_filtrados, names='TIPO_CONTAMINANTE', title='Proporción de Contaminantes Prevalentes')
+# Pie chart por contaminantes prevalentes
+pie_chart = px.pie(
+    datos_filtrados,
+    names='Contaminante Prevalente',
+    title='Proporción de Contaminantes Prevalentes'
+)
 st.plotly_chart(pie_chart)
 
-# ---------------------------
-# Preparar datos raster / satélite y combinar contaminantes
-# ---------------------------
-st.subheader("Mapa interactivo — integración de productos satelitales")
 
-gdfs = cargar_rasters_filtrados(archivos, cdmx)
+#Mapa Interactivo CDMX
+aqi_mapa = aqi_cdmx.rename(columns={
+    "ESTACION": "Estación",
+    "AQI": "Índice de Calidad del Aire",
+    "TIPO_CONTAMINANTE": "Contaminante Prevalente"
+})
+mapa = aqi_mapa.explore(
+    column="Índice de Calidad del Aire",  # Columna que define el color
+    cmap="RdYlGn_r",
+    legend=True, # Muestra barra de colores
+    marker_kwds=dict(radius=8, fillOpacity=0.8),  # Opciones del marcador
+    tooltip=["Estación", "Índice de Calidad del Aire", "Contaminante Prevalente"],  # Info al pasar el mouse
+)
+# Mostrar el mapa dentro de Streamlit
+st.subheader("Mapa Interactivo del AQI por Estación")
+st_data = st_folium(mapa, width=1000, height=600)
 
-# Si no hay datos raster, mostrar aviso
-if not gdfs:
-    st.warning("No se pudieron cargar los datos raster. Revisa que los archivos existan y que 'leer_contaminante_raster' funcione.")
-else:
-    # Combinar por lon/lat
-    gdf_final = reduce(lambda left, right: pd.merge(left, right, on=["lon","lat"], how="outer"), gdfs)
-    gdf_final = gpd.GeoDataFrame(
-        gdf_final,
-        geometry=gpd.points_from_xy(gdf_final["lon"], gdf_final["lat"]),
-        crs="EPSG:4326"
-    )
 
-    # Asegurar que las columnas existan (evitar KeyError)
-    pollutant_cols = [v for _, v in archivos.values()]
-    existing_pollutants = [c for c in pollutant_cols if c in gdf_final.columns]
-    if not existing_pollutants:
-        st.error("No se encontraron las variables de contaminantes en los datos raster combinados.")
-    else:
-        # Calcular indicadores simples
-        gdf_final["total_contaminacion"] = gdf_final[existing_pollutants].sum(axis=1)
-        gdf_final["promedio"] = gdf_final[existing_pollutants].mean(axis=1)
-        gdf_final["indice_normalizado"] = (
-            (gdf_final["total_contaminacion"] - gdf_final["total_contaminacion"].min()) /
-            (gdf_final["total_contaminacion"].max() - gdf_final["total_contaminacion"].min())
-        )
+#Mapa interactivo raster
+for nombre, (path, var) in archivos.items():
+    gdf = leer_contaminante_raster(path, var)
+    gdf = gpd.sjoin(gdf, cdmx, predicate="within")  # quedarse solo con CDMX
+    gdfs.append(gdf[["lon", "lat", var]])
 
-        # Crear mapa base
-        mapa_raster = folium.Map(location=[19.4326, -99.1332], zoom_start=10, tiles="CartoDB positron")
+gdf_final = reduce(lambda left, right: pd.merge(left, right, on=["lon","lat"], how="outer"), gdfs)
 
-        # --- MiniMap (contexto) ---
-        minimap = MiniMap(toggle_display=True, position="bottomright")
-        mapa_raster.add_child(minimap)
+gdf_final = gpd.GeoDataFrame(
+    gdf_final,
+    geometry=gpd.points_from_xy(gdf_final["lon"], gdf_final["lat"]),
+    crs="EPSG:4326"
+)
 
-        # --- Fullscreen ---
-        Fullscreen(position='topleft').add_to(mapa_raster)
+gdf_final["total_contaminacion"] = gdf_final[
+    ["carbonmonoxide_total_column",
+     "nitrogendioxide_tropospheric_column",
+     "sulfurdioxide_total_vertical_column",
+     "ozone_total_vertical_column",
+     "aerosol_mid_pressure"]
+].sum(axis=1)
 
-        # --- Mouse position (coord display) ---
-        MousePosition(position="topright", separator=" : ", prefix="Lat/Lon").add_to(mapa_raster)
 
-        # --- Crear colormap (branca) para la leyenda ---
-        colormap = cm.LinearColormap(['blue','green','yellow','orange','red'],
-                                    vmin=0, vmax=1,
-                                    caption='Índice Normalizado (0 - limpio, 1 - más contaminado)')
-        colormap.add_to(mapa_raster)
+gdf_final["promedio"] = gdf_final[
+    ["carbonmonoxide_total_column",
+     "nitrogendioxide_tropospheric_column",
+     "sulfurdioxide_total_vertical_column",
+     "ozone_total_vertical_column",
+     "aerosol_mid_pressure"]
+].mean(axis=1)
 
-        # --- Capa de heatmap general (total) dentro de FeatureGroup para control de capas ---
-        fg_total = folium.FeatureGroup(name="Heatmap — Total (todos contaminantes)", show=True)
-        heat_data_total = [[row['lat'], row['lon'], row['indice_normalizado']] for _, row in gdf_final.dropna(subset=["indice_normalizado"]).iterrows()]
-        HeatMap(heat_data_total, radius=12, blur=15, max_zoom=12).add_to(fg_total)
-        mapa_raster.add_child(fg_total)
 
-        # --- Capas individuales por contaminante (si existen) ---
-        for pollutant in existing_pollutants:
-            fg = folium.FeatureGroup(name=f"Heatmap — {pollutant}", show=False)
-            heat_data = [[row['lat'], row['lon'], row[pollutant]] for _, row in gdf_final.dropna(subset=[pollutant]).iterrows()]
-            HeatMap(heat_data, radius=10, blur=14, max_zoom=12).add_to(fg)
-            mapa_raster.add_child(fg)
+gdf_final["indice_normalizado"] = (
+    (gdf_final["total_contaminacion"] - gdf_final["total_contaminacion"].min()) /
+    (gdf_final["total_contaminacion"].max() - gdf_final["total_contaminacion"].min())
+)
 
-        # --- Añadir puntos con popups detallados (opcional, en una capa) ---
-        fg_puntos = folium.FeatureGroup(name="Puntos — detalles", show=False)
-        for _, row in gdf_final.dropna(subset=["lon","lat"]).iterrows():
-            popup_html = "<div style='font-size:12px'>"
-            for pollutant in existing_pollutants:
-                val = row.get(pollutant)
-                popup_html += f"<b>{pollutant}:</b> {val:.4f}<br>" if pd.notna(val) else f"<b>{pollutant}:</b> N/A<br>"
-            popup_html += f"<b>Total norm:</b> {row['indice_normalizado']:.3f}<br>"
-            popup_html += "</div>"
-            folium.CircleMarker(
-                location=[row['lat'], row['lon']],
-                radius=3,
-                color=None,
-                fill=True,
-                fill_opacity=0.7,
-                fill_color=colormap(row['indice_normalizado']) if pd.notna(row['indice_normalizado']) else "#000000",
-                popup=folium.Popup(popup_html, max_width=300)
-            ).add_to(fg_puntos)
-        mapa_raster.add_child(fg_puntos)
+pollutant_cols = [v for _, v in archivos.values()]
+existing_pollutants = [c for c in pollutant_cols if c in gdf_final.columns]
 
-        # --- Layer control para activar/desactivar capas ---
-        folium.LayerControl(collapsed=False).add_to(mapa_raster)
 
-        # --- Mostrar resultado en Streamlit ---
-        st.subheader("Mapa Interactivo del AQI (satélite) — Heatmaps y capas")
-        st_data = st_folium(mapa_raster, width=1000, height=600)
+mapa_raster = folium.Map(location=[19.4326, -99.1332], zoom_start=10)
 
-        # Pequeña tabla resumen al pie
-        st.markdown("**Resumen**")
-        st.write(f"Total puntos: {len(gdf_final)}")
-        st.write("Capas disponibles: Total + " + ", ".join(existing_pollutants) + " + Puntos (popup)")
+# Preparar datos para heatmap
+heat_data = [
+    [row['lat'], row['lon'], row['indice_normalizado']]
+    for _, row in gdf_final.dropna(subset=["indice_normalizado"]).iterrows()
+]
+
+# Agregar heatmap
+HeatMap(
+    heat_data,
+    radius=12,   # tamaño del punto
+    blur=15,
+    max_zoom=1
+).add_to(mapa_raster)
+
+MousePosition(position="topright", separator=" : ", prefix="Lat/Lon").add_to(mapa_raster)
+
+# --- Crear colormap (branca) para la leyenda ---
+colormap = cm.LinearColormap(['blue','green','yellow','orange','red'],
+                            vmin=0, vmax=1,
+                            caption='Índice Normalizado (0 - limpio, 1 - más contaminado)')
+colormap.add_to(mapa_raster)
+
+# --- Capa de heatmap general (total) dentro de FeatureGroup para control de capas ---
+fg_total = folium.FeatureGroup(name="Heatmap — Total (todos contaminantes)", show=True)
+heat_data_total = [[row['lat'], row['lon'], row['indice_normalizado']] for _, row in gdf_final.dropna(subset=["indice_normalizado"]).iterrows()]
+HeatMap(heat_data_total, radius=12, blur=15, max_zoom=12).add_to(fg_total)
+mapa_raster.add_child(fg_total)
+
+# --- Capas individuales por contaminante (si existen) ---
+for pollutant in existing_pollutants:
+    fg = folium.FeatureGroup(name=f"Heatmap — {pollutant}", show=False)
+    heat_data = [[row['lat'], row['lon'], row[pollutant]] for _, row in gdf_final.dropna(subset=[pollutant]).iterrows()]
+    HeatMap(heat_data, radius=10, blur=14, max_zoom=12).add_to(fg)
+    mapa_raster.add_child(fg)
+    
+folium.LayerControl(collapsed=False).add_to(mapa_raster)
+
+# Mostrar el mapa dentro de Streamlit
+st.subheader("Mapa Interactivo del AQI de los contaminantes CO, NO2, SO2, O3, AER")
+st_data = st_folium(mapa_raster, width=1000, height=600)
