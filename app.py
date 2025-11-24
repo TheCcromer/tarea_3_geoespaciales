@@ -166,46 +166,47 @@ st.plotly_chart(pie_chart)
 
 
 #Mapa Interactivo CDMX
+# Renombramos columnas igual que antes
 aqi_mapa = aqi_cdmx.rename(columns={
     "ESTACION": "Estación",
     "AQI": "Índice de Calidad del Aire",
-    "TIPO_CONTAMINANTE": "Contaminante Prevalente"
+    "TIPO_CONTAMINANTE": "Contaminante Prevalente",
 })
 
-# Crear mapa base centrado en CDMX
+# Crear mapa base
 mapa = folium.Map(location=[19.4326, -99.1332], zoom_start=11)
 
-# Crear un colormap basado en la escala AQI
+# Crear colormap similar al que usa explore automáticamente
 colormap = cm.LinearColormap(
-    colors=['green', 'yellow', 'orange', 'red', 'purple'],
+    ['green', 'yellow', 'orange', 'red', 'purple'],
     vmin=aqi_mapa["Índice de Calidad del Aire"].min(),
     vmax=aqi_mapa["Índice de Calidad del Aire"].max(),
-    caption="Índice de Calidad del Aire (AQI)"
 )
+colormap.caption = "Índice de Calidad del Aire"
 colormap.add_to(mapa)
 
-# Cluster de marcadores
-cluster = MarkerCluster().add_to(mapa)
-
-# Agregar puntos al mapa
+# Agregar cada punto como un CircleMarker (similar a explore)
 for _, row in aqi_mapa.iterrows():
-    color = colormap(row["Índice de Calidad del Aire"])
 
-    popup_html = f"""
-    <b>Estación:</b> {row['Estación']}<br>
-    <b>AQI:</b> {row['Índice de Calidad del Aire']}<br>
-    <b>Contaminante prevalente:</b> {row['Contaminante Prevalente']}
-    """
+    color = colormap(row["Índice de Calidad del Aire"])
 
     folium.CircleMarker(
         location=[row["lat"], row["lon"]],
         radius=8,
-        color=color,
         fill=True,
         fill_color=color,
+        color=color,
         fill_opacity=0.8,
-        popup=popup_html
-    ).add_to(cluster)
+        popup=folium.Popup(
+            html=f"""
+            <b>Estación:</b> {row['Estación']}<br>
+            <b>AQI:</b> {row['Índice de Calidad del Aire']}<br>
+            <b>Contaminante Prevalente:</b> {row['Contaminante Prevalente']}
+            """,
+            max_width=250,
+        ),
+        tooltip=f"{row['Estación']} — AQI: {row['Índice de Calidad del Aire']}"
+    ).add_to(mapa)
 
 # Mostrar el mapa en Streamlit
 st.subheader("Mapa Interactivo del AQI por Estación")
