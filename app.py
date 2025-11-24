@@ -171,16 +171,45 @@ aqi_mapa = aqi_cdmx.rename(columns={
     "AQI": "Índice de Calidad del Aire",
     "TIPO_CONTAMINANTE": "Contaminante Prevalente"
 })
-mapa = aqi_mapa.explore(
-    column="Índice de Calidad del Aire",  # Columna que define el color
-    cmap="RdYlGn_r",
-    legend=True, # Muestra barra de colores
-    marker_kwds=dict(radius=8, fillOpacity=0.8),  # Opciones del marcador
-    tooltip=["Estación", "Índice de Calidad del Aire", "Contaminante Prevalente"],  # Info al pasar el mouse
+
+# Crear mapa base centrado en CDMX
+mapa = folium.Map(location=[19.4326, -99.1332], zoom_start=11)
+
+# Crear un colormap basado en la escala AQI
+colormap = cm.LinearColormap(
+    colors=['green', 'yellow', 'orange', 'red', 'purple'],
+    vmin=aqi_mapa["Índice de Calidad del Aire"].min(),
+    vmax=aqi_mapa["Índice de Calidad del Aire"].max(),
+    caption="Índice de Calidad del Aire (AQI)"
 )
-# Mostrar el mapa dentro de Streamlit
+colormap.add_to(mapa)
+
+# Cluster de marcadores
+cluster = MarkerCluster().add_to(mapa)
+
+# Agregar puntos al mapa
+for _, row in aqi_mapa.iterrows():
+    color = colormap(row["Índice de Calidad del Aire"])
+
+    popup_html = f"""
+    <b>Estación:</b> {row['Estación']}<br>
+    <b>AQI:</b> {row['Índice de Calidad del Aire']}<br>
+    <b>Contaminante prevalente:</b> {row['Contaminante Prevalente']}
+    """
+
+    folium.CircleMarker(
+        location=[row["lat"], row["lon"]],
+        radius=8,
+        color=color,
+        fill=True,
+        fill_color=color,
+        fill_opacity=0.8,
+        popup=popup_html
+    ).add_to(cluster)
+
+# Mostrar el mapa en Streamlit
 st.subheader("Mapa Interactivo del AQI por Estación")
-st_data = st_folium(mapa, width=1000, height=600)
+st_folium(mapa, width=1000, height=600)
 
 
 #Mapa interactivo raster
