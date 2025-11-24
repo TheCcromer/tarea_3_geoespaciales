@@ -191,7 +191,7 @@ for _, row in aqi_mapa.iterrows():
     color = colormap(row["Índice de Calidad del Aire"])
 
     folium.CircleMarker(
-        location=[row["lat"], row["lon"]],
+        location=[row["latitud"], row["longitud"]],
         radius=8,
         fill=True,
         fill_color=color,
