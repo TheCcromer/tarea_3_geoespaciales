@@ -177,14 +177,29 @@ aqi_mapa = aqi_cdmx.rename(columns={
 mapa = folium.Map(location=[19.4326, -99.1332], zoom_start=11)
 
 # Crear colormap similar al que usa explore automáticamente
-colormap = cm.LinearColormap(
-    ['green', 'yellow', 'orange', 'red', 'purple'],
-    vmin=aqi_mapa["Índice de Calidad del Aire"].min(),
-    vmax=aqi_mapa["Índice de Calidad del Aire"].max(),
-).to_step(n=5)
+legend_aqi = """
+<div style="
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index:9999;
+    background-color:white;
+    padding: 10px;
+    border:2px solid grey;
+    border-radius:8px;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+    font-size:14px;
+">
+<b>Índice de Calidad del Aire (AQI)</b><br>
+<div>
+<div style="height:12px; width:120px; background:linear-gradient(to right,
+green, yellow, orange, red, purple);"></div>
+</div>
+<span style="font-size:12px;">Mejor → Peor</span>
+</div>
+"""
+mapa.get_root().html.add_child(folium.Element(legend_aqi))
 
-colormap.caption = "Índice de Calidad del Aire"
-colormap.add_to(mapa)
 
 # Agregar cada punto como un CircleMarker (similar a explore)
 for _, row in aqi_mapa.iterrows():
@@ -274,28 +289,29 @@ HeatMap(
 MousePosition(position="topright", separator=" : ", prefix="Lat/Lon").add_to(mapa_raster)
 
 # --- Crear colormap (branca) para la leyenda ---
-colormap = cm.LinearColormap(
-    ['blue','green','yellow','orange','red'],
-    vmin=0, vmax=1,
-).to_step(n=10)
+legend_norm = """
+<div style="
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    z-index:9999;
+    background-color:white;
+    padding: 10px;
+    border:2px solid grey;
+    border-radius:8px;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+    font-size:14px;
+">
+<b>Índice Normalizado</b><br>
+0 (limpio)
+<div style="width:120px; height:12px; 
+background: linear-gradient(to right, blue, green, yellow, orange, red)"></div>
+1 (más contaminado)
+</div>
+"""
+mapa_raster.get_root().html.add_child(folium.Element(legend_norm))
 
-colormap.caption = 'Índice Normalizado (0 - limpio, 1 - más contaminado)'
-colormap.add_to(mapa_raster)
-
-# --- Capa de heatmap general (total) dentro de FeatureGroup para control de capas ---
-fg_total = folium.FeatureGroup(name="Heatmap — Total (todos contaminantes)", show=True)
-heat_data_total = [[row['lat'], row['lon'], row['indice_normalizado']] for _, row in gdf_final.dropna(subset=["indice_normalizado"]).iterrows()]
-HeatMap(heat_data_total, radius=12, blur=15, max_zoom=12).add_to(fg_total)
-mapa_raster.add_child(fg_total)
-
-# --- Capas individuales por contaminante (si existen) ---
-for pollutant in existing_pollutants:
-    fg = folium.FeatureGroup(name=f"Heatmap — {pollutant}", show=False)
-    heat_data = [[row['lat'], row['lon'], row[pollutant]] for _, row in gdf_final.dropna(subset=[pollutant]).iterrows()]
-    HeatMap(heat_data, radius=10, blur=14, max_zoom=12).add_to(fg)
-    mapa_raster.add_child(fg)
     
-folium.LayerControl(collapsed=False).add_to(mapa_raster)
 
 # Mostrar el mapa dentro de Streamlit
 st.subheader("Mapa Interactivo del AQI de los contaminantes CO, NO2, SO2, O3, AER")
