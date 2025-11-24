@@ -181,9 +181,10 @@ colormap = cm.LinearColormap(
     ['green', 'yellow', 'orange', 'red', 'purple'],
     vmin=aqi_mapa["Índice de Calidad del Aire"].min(),
     vmax=aqi_mapa["Índice de Calidad del Aire"].max(),
-)
+).to_step(n=5)
+
 colormap.caption = "Índice de Calidad del Aire"
-colormap.add_to(mapa)
+colormap.add_to(mapa, position="bottomleft")
 
 # Agregar cada punto como un CircleMarker (similar a explore)
 for _, row in aqi_mapa.iterrows():
@@ -273,10 +274,13 @@ HeatMap(
 MousePosition(position="topright", separator=" : ", prefix="Lat/Lon").add_to(mapa_raster)
 
 # --- Crear colormap (branca) para la leyenda ---
-colormap = cm.LinearColormap(['blue','green','yellow','orange','red'],
-                            vmin=0, vmax=1,
-                            caption='Índice Normalizado (0 - limpio, 1 - más contaminado)')
-colormap.add_to(mapa_raster)
+colormap = cm.LinearColormap(
+    ['blue','green','yellow','orange','red'],
+    vmin=0, vmax=1,
+).to_step(n=10)
+
+colormap.caption = 'Índice Normalizado (0 - limpio, 1 - más contaminado)'
+colormap.add_to(mapa_raster, position="bottomleft")
 
 # --- Capa de heatmap general (total) dentro de FeatureGroup para control de capas ---
 fg_total = folium.FeatureGroup(name="Heatmap — Total (todos contaminantes)", show=True)
