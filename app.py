@@ -135,18 +135,18 @@ st.subheader("Gráficos relacionados al Índice de Calidad del Aire ")
 st.plotly_chart(fig, use_container_width=True)
 
 # Bar Chart - Estaciones con mayor AQI promedio
-top_municipios = datos_filtrados.sort_values("Índice de Calidad del Aire", ascending=False)
-fig = px.bar(top_municipios, x="Estación", y="Índice de Calidad del Aire", color="Contaminante Prevalente",
+top_municipios = datos_filtrados.sort_values("Indice de Calidad del Aire", ascending=False)
+fig = px.bar(top_municipios, x="Estacion", y="Indice de Calidad del Aire", color="Contaminante Prevalente",
              title="Estaciones con mayor AQI promedio")
 st.plotly_chart(fig)
 
 # Promedio de AQI por municipio (Bar Chart)
 bar_chart = px.bar(
-    datos_filtrados.groupby('Municipio')['Índice de Calidad del Aire'].mean().reset_index(),
+    datos_filtrados.groupby('Municipio')['Indice de Calidad del Aire'].mean().reset_index(),
     x='Municipio',
-    y='Índice de Calidad del Aire',
+    y='Indice de Calidad del Aire',
     title='Promedio de AQI por Municipio',
-    labels={'Municipio': 'Municipio', 'Índice de Calidad del Aire': 'AQI Promedio'},
+    labels={'Municipio': 'Municipio', 'Indice de Calidad del Aire': 'AQI Promedio'},
 )
 st.plotly_chart(bar_chart, use_container_width=True)
 
@@ -154,7 +154,7 @@ st.plotly_chart(bar_chart, use_container_width=True)
 box_plot = px.box(
     datos_filtrados,
     x='Contaminante Prevalente',
-    y='Índice de Calidad del Aire',
+    y='Indice de Calidad del Aire',
     title='Distribución del AQI por Contaminante'
 )
 st.plotly_chart(box_plot, use_container_width=True)
