@@ -216,7 +216,7 @@ for _, row in aqi_mapa.iterrows():
     ).add_to(mapa)
 # Mostrar el mapa
 st.subheader("Mapa Interactivo del AQI por Estación")
-st_folium(mapa, width=900, height=650)
+st_folium(mapa, width=1200, height=750)
 
 
 
@@ -283,4 +283,4 @@ paleta_norm.add_to(mapa_raster)
 
 # Mostrar el mapa dentro de Streamlit
 st.subheader("Mapa Interactivo del AQI de los contaminantes CO, NO2, SO2, O3, AER")
-st_data = st_folium(mapa_raster, width=900, height=650)
+st_data = st_folium(mapa_raster, width=1200, height=750)
