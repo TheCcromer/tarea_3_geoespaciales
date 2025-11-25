@@ -94,10 +94,10 @@ else:
 # Mostrar la tabla
 st.subheader('AQI (Air Quality Index) Promedio Anual por Municipio de la Ciudad México')
 datos_filtrados = datos_filtrados.rename(columns={
-    'ESTACION': 'Estación',
+    'ESTACION': 'Estacion',
     'NOM_MUN': 'Municipio',
     'TIPO_CONTAMINANTE': 'Contaminante Prevalente',
-    'AQI': 'Índice de Calidad del Aire'
+    'AQI': 'Indice de Calidad del Aire'
 })
 st.dataframe(datos_filtrados, hide_index=True)
 
@@ -184,12 +184,8 @@ else:
 
 # Renombrar columnas justo antes del mapa
 aqi_mapa = aqi_filtrado.rename(columns={
-    "ESTACION": "Estacion",
-    "AQI": "Indice de Calidad del Aire",
-    "TIPO_CONTAMINANTE": "Contaminante Prevalente",
     "latitud": "lat",
     "longitud": "lon",
-    "NOM_MUN": "Municipio"
 })
 
 # Crear mapa base
