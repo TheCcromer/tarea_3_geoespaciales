@@ -188,12 +188,14 @@ st.write("COLUMNAS DE aqi_mapa:", list(aqi_filtrado.columns))
 # Renombrar columnas justo antes del mapa
 aqi_mapa = aqi_filtrado.rename(columns={
     "ESTACION": "Estacion",
-    "AQI": "Indice de Calidad del Aire",
-    "TIPO_CONTAMINANTE": "Contaminante Prevalente",
+    "AQI_x": "Indice de Calidad del Aire",
+    "TIPO_CONTAMINANTE_x": "Contaminante Prevalente",
     "latitud": "lat",
     "longitud": "lon",
     "NOM_MUN": "Municipio"
 })
+
+aqi_mapa = aqi_mapa['Estacion','Indice de Calidad del Aire','Contaminante Prevalente','lat','lon','Municipio']
 
 # Crear mapa base
 mapa = folium.Map(location=[19.4326, -99.1332], zoom_start=11)
