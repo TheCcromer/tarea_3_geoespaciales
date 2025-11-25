@@ -169,14 +169,27 @@ st.plotly_chart(pie_chart)
 
 
 # --- MAPA INTERACTIVO CDMX ---
+# Hacer join entre aqi_cdmx (que sí tiene lat/lon) y df_con_municipios
+aqi_join = aqi_cdmx.merge(
+    df_con_municipios,
+    left_on="ESTACION",
+    right_on="ESTACION",
+    how="left"
+)
 
-# Renombramos columnas igual que antes
-aqi_mapa = aqi_cdmx.rename(columns={
+if municipio_seleccionado != "Todos":
+    aqi_filtrado = aqi_join[aqi_join["NOM_MUN"] == municipio_seleccionado]
+else:
+    aqi_filtrado = aqi_join.copy()
+
+# Renombrar columnas justo antes del mapa
+aqi_mapa = aqi_filtrado.rename(columns={
     "ESTACION": "Estacion",
     "AQI": "Indice de Calidad del Aire",
     "TIPO_CONTAMINANTE": "Contaminante Prevalente",
     "latitud": "lat",
-    "longitud": "lon"
+    "longitud": "lon",
+    "NOM_MUN": "Municipio"
 })
 
 # Crear mapa base
@@ -217,7 +230,7 @@ for _, row in aqi_mapa.iterrows():
 colormap.add_to(mapa)
 # Mostrar el mapa
 st.subheader("Mapa Interactivo del AQI por Estación")
-st_folium(mapa, width=1200, height=750)
+st_folium(mapa, width=1000, height=750)
 
 
 
@@ -284,4 +297,4 @@ paleta_norm.add_to(mapa_raster)
 
 # Mostrar el mapa dentro de Streamlit
 st.subheader("Mapa Interactivo del AQI de los contaminantes CO, NO2, SO2, O3, AER")
-st_data = st_folium(mapa_raster, width=1200, height=750)
+st_data = st_folium(mapa_raster, width=1000, height=750)
