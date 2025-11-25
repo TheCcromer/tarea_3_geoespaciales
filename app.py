@@ -187,6 +187,11 @@ paleta_aqi.caption = "Índice de Calidad del Aire (AQI)"
 # Añadir la leyenda al mapa de estaciones
 paleta_aqi.add_to(mapa)
 
+popup_html = (
+    f"<b>Estación:</b> {row['Estación']}<br>"
+    f"<b>AQI:</b> {row['Índice de Calidad del Aire']}<br>"
+    f"<b>Contaminante:</b> {row['Contaminante Prevalente']}"
+)
 
 # Agregar cada punto como un CircleMarker (similar a explore)
 for _, row in aqi_mapa.iterrows():
@@ -195,21 +200,14 @@ for _, row in aqi_mapa.iterrows():
     color = paleta_aqi(valor) if pd.notna(valor) else "#999999"
 
     folium.CircleMarker(
-        location=[row["latitud"], row["longitud"]],
-        radius=8,
-        fill=True,
-        fill_color=color,
-        color=color,
-        fill_opacity=0.8,
-        popup=folium.Popup(
-            html=f"""
-            <b>Estación:</b> {row['Estación']}<br>
-            <b>AQI:</b> {row['Índice de Calidad del Aire']}<br>
-            <b>Contaminante Prevalente:</b> {row['Contaminante Prevalente']}
-            """,
-            max_width=250,
-        ),
-        tooltip=f"{row['Estación']} — AQI: {row['Índice de Calidad del Aire']}"
+    location=[row[lat_col], row[lon_col]],
+    radius=8,
+    fill=True,
+    color=color,
+    fill_color=color,
+    fill_opacity=0.8,
+    popup=folium.Popup(popup_html, max_width=250),
+    tooltip=row["Estación"],
     ).add_to(mapa)
 
 # Mostrar el mapa en Streamlit
