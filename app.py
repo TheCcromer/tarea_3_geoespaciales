@@ -186,8 +186,8 @@ mapa = folium.Map(location=[19.4326, -99.1332], zoom_start=11)
 # --- COLOMAP Verde → Amarillo → Rojo ---
 colormap = cm.LinearColormap(
     colors=["green", "yellow", "red"],
-    vmin=aqi_mapa["Índice de Calidad del Aire"].min(),
-    vmax=aqi_mapa["Índice de Calidad del Aire"].max(),
+    vmin=aqi_mapa["Indice de Calidad del Aire"].min(),
+    vmax=aqi_mapa["Indice de Calidad del Aire"].max(),
     caption="Índice de Calidad del Aire (AQI)"
 )
 
