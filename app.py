@@ -15,6 +15,8 @@ from util import corregir_acentos, remover_acentos
 from functools import reduce
 from data_generation import leer_contaminante_raster
 from branca.colormap import linear
+import branca.colormap as cm
+
 
 
 # Configuración 
@@ -194,14 +196,12 @@ colormap.add_to(mapa)
 
 # --- Marcadores con popup ---
 for _, row in df.iterrows():
-    lat = row["Latitud"]
-    lon = row["Longitud"]
-    aqi = row["Índice de Calidad del Aire"]
+    lat = row["lat"]
+    lon = row["lon"]
+    aqi = row["Indice de Calidad del Aire"]
 
     popup_text = (
-        f"<b>Estación:</b> {row['Estación']}<br>"
-        f"<b>Provincia:</b> {row['Provincia']}<br>"
-        f"<b>Región:</b> {row['Región']}<br>"
+        f"<b>Estación:</b> {row['Estacion']}<br>"
         f"<b>AQI:</b> {aqi}<br>"
     )
 
