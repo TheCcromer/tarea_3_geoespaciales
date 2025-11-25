@@ -186,8 +186,8 @@ mapa = folium.Map(location=[19.4326, -99.1332], zoom_start=11)
 # --- COLOMAP Verde → Amarillo → Rojo ---
 colormap = cm.LinearColormap(
     colors=["green", "yellow", "red"],
-    vmin=df["Índice de Calidad del Aire"].min(),
-    vmax=df["Índice de Calidad del Aire"].max(),
+    vmin=aqi_mapa["Índice de Calidad del Aire"].min(),
+    vmax=aqi_mapa["Índice de Calidad del Aire"].max(),
     caption="Índice de Calidad del Aire (AQI)"
 )
 
@@ -195,7 +195,7 @@ colormap = cm.LinearColormap(
 colormap.add_to(mapa)
 
 # --- Marcadores con popup ---
-for _, row in df.iterrows():
+for _, row in aqi_mapa.iterrows():
     lat = row["lat"]
     lon = row["lon"]
     aqi = row["Indice de Calidad del Aire"]
