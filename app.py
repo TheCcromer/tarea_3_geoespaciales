@@ -181,41 +181,42 @@ aqi_mapa = aqi_cdmx.rename(columns={
 mapa = folium.Map(location=[19.4326, -99.1332], zoom_start=11)
 
 # paleta para AQI según min/max reales
-vmin = aqi_mapa["Indice de Calidad del Aire"].min()
-vmax = aqi_mapa["Indice de Calidad del Aire"].max()
+# --- COLOMAP Verde → Amarillo → Rojo ---
+colormap = cm.LinearColormap(
+    colors=["green", "yellow", "red"],
+    vmin=df["Índice de Calidad del Aire"].min(),
+    vmax=df["Índice de Calidad del Aire"].max(),
+    caption="Índice de Calidad del Aire (AQI)"
+)
 
-paleta_aqi = linear.YlOrRd_09.scale(vmin, vmax)
-paleta_aqi.caption = "Índice de Calidad del Aire (AQI)"
+# Añadir legend nativo
+colormap.add_to(mapa)
 
-# Añadir la leyenda
-paleta_aqi.add_to(mapa)
+# --- Marcadores con popup ---
+for _, row in df.iterrows():
+    lat = row["Latitud"]
+    lon = row["Longitud"]
+    aqi = row["Índice de Calidad del Aire"]
 
-# --- Agregar estaciones ---
-for _, row in aqi_mapa.iterrows():
-
-    valor = row["Indice de Calidad del Aire"]
-    color = paleta_aqi(valor) if pd.notna(valor) else "#999999"
-
-    popup_html = (
-        f"<b>Estación:</b> {row['Estacion']}<br>"
-        f"<b>AQI:</b> {row['Indice de Calidad del Aire']}<br>"
-        f"<b>Contaminante:</b> {row['Contaminante Prevalente']}"
+    popup_text = (
+        f"<b>Estación:</b> {row['Estación']}<br>"
+        f"<b>Provincia:</b> {row['Provincia']}<br>"
+        f"<b>Región:</b> {row['Región']}<br>"
+        f"<b>AQI:</b> {aqi}<br>"
     )
 
     folium.CircleMarker(
-        location=[row["lat"], row["lon"]],
-        radius=8,
+        location=(lat, lon),
+        radius=7,
+        color=colormap(aqi),
         fill=True,
-        color=color,
-        fill_color=color,
-        fill_opacity=0.8,
-        popup=folium.Popup(popup_html, max_width=250),
-        tooltip=row["Estacion"],
+        fill_color=colormap(aqi),
+        fill_opacity=0.85,
+        popup=folium.Popup(popup_text, max_width=300)
     ).add_to(mapa)
-
 # Mostrar el mapa
 st.subheader("Mapa Interactivo del AQI por Estación")
-st_folium(mapa, width=1000, height=600)
+st_folium(mapa, width=900, height=650)
 
 
 
@@ -282,4 +283,4 @@ paleta_norm.add_to(mapa_raster)
 
 # Mostrar el mapa dentro de Streamlit
 st.subheader("Mapa Interactivo del AQI de los contaminantes CO, NO2, SO2, O3, AER")
-st_data = st_folium(mapa_raster, width=1000, height=600)
+st_data = st_folium(mapa_raster, width=900, height=650)
