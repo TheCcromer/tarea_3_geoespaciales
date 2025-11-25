@@ -182,8 +182,6 @@ if municipio_seleccionado != "Todos":
 else:
     aqi_filtrado = aqi_join.copy()
 
-st.write("COLUMNAS DE aqi_mapa:", list(aqi_filtrado.columns))
-
 
 # Renombrar columnas justo antes del mapa
 aqi_mapa = aqi_filtrado.rename(columns={
