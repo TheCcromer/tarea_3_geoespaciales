@@ -191,8 +191,7 @@ colormap = cm.LinearColormap(
     caption="Índice de Calidad del Aire (AQI)"
 )
 
-# Añadir legend nativo
-colormap.add_to(mapa)
+
 
 # --- Marcadores con popup ---
 for _, row in aqi_mapa.iterrows():
@@ -214,6 +213,8 @@ for _, row in aqi_mapa.iterrows():
         fill_opacity=0.85,
         popup=folium.Popup(popup_text, max_width=300)
     ).add_to(mapa)
+# Añadir legend nativo
+colormap.add_to(mapa)
 # Mostrar el mapa
 st.subheader("Mapa Interactivo del AQI por Estación")
 st_folium(mapa, width=1200, height=750)
