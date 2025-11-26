@@ -84,12 +84,36 @@ municipio_seleccionado = st.sidebar.selectbox(
 
 # ----- Filtrar datos según la selección -----
 
-if municipio_seleccionado != 'Todos':
-    # Filtrar los datos para el país seleccionado
-    datos_filtrados = df_con_municipios[df_con_municipios['NOM_MUN'] == municipio_seleccionado]
-else:
-    # No aplicar filtro
-    datos_filtrados = df_con_municipios.copy()
+# --------------------------------------------------------------------
+# --------------------- NUEVO FILTRO POR CONTAMINANTE ----------------
+# --------------------------------------------------------------------
+
+lista_contaminantes = df_con_municipios["TIPO_CONTAMINANTE"].unique().tolist()
+lista_contaminantes.sort()
+opciones_contaminantes = ["Todos"] + lista_contaminantes
+
+contaminante_seleccionado = st.sidebar.selectbox(
+    "Selecciona un contaminante",
+    opciones_contaminantes
+)
+
+# Aplicación conjunta de filtros municipio + contaminante
+datos_filtrados = df_con_municipios.copy()
+
+if municipio_seleccionado != "Todos":
+    datos_filtrados = datos_filtrados[datos_filtrados["NOM_MUN"] == municipio_seleccionado]
+
+if contaminante_seleccionado != "Todos":
+    datos_filtrados = datos_filtrados[datos_filtrados["TIPO_CONTAMINANTE"] == contaminante_seleccionado]
+
+# Renombrar final siempre al terminar filtros
+datos_filtrados = datos_filtrados.rename(columns={
+    'ESTACION': 'Estacion',
+    'NOM_MUN': 'Municipio',
+    'TIPO_CONTAMINANTE': 'Contaminante Prevalente',
+    'AQI': 'Indice de Calidad del Aire'
+})
+
 
 # Mostrar la tabla
 st.subheader('AQI (Air Quality Index) Promedio Anual por Municipio de la Ciudad México')
@@ -170,30 +194,31 @@ st.plotly_chart(pie_chart)
 
 # --- MAPA INTERACTIVO CDMX ---
 # Hacer join entre aqi_cdmx (que sí tiene lat/lon) y df_con_municipios
+# --- Filtro combinado para el mapa de puntos ---
 aqi_join = aqi_cdmx.merge(
     df_con_municipios,
     left_on="ESTACION",
-    right_on="ESTACION",
+    right_on="Estacion",
     how="left"
 )
 
+aqi_filtrado = aqi_join.copy()
+
 if municipio_seleccionado != "Todos":
-    aqi_filtrado = aqi_join[aqi_join["NOM_MUN"] == municipio_seleccionado]
-else:
-    aqi_filtrado = aqi_join.copy()
+    aqi_filtrado = aqi_filtrado[aqi_filtrado["Municipio"] == municipio_seleccionado]
 
+if contaminante_seleccionado != "Todos":
+    aqi_filtrado = aqi_filtrado[aqi_filtrado["Contaminante Prevalente"] == contaminante_seleccionado]
 
-# Renombrar columnas justo antes del mapa
+# Preparar columnas
 aqi_mapa = aqi_filtrado.rename(columns={
-    "ESTACION": "Estacion",
     "AQI_x": "Indice de Calidad del Aire",
-    "TIPO_CONTAMINANTE_x": "Contaminante Prevalente",
     "latitud": "lat",
-    "longitud": "lon",
-    "NOM_MUN": "Municipio"
+    "longitud": "lon"
 })
 
 aqi_mapa = aqi_mapa[['Estacion','Indice de Calidad del Aire','Contaminante Prevalente','lat','lon','Municipio']]
+
 
 # Crear mapa base
 mapa = folium.Map(location=[19.4326, -99.1332], zoom_start=11)
