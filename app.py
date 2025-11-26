@@ -211,11 +211,7 @@ if contaminante_seleccionado != "Todos":
     aqi_filtrado = aqi_filtrado[aqi_filtrado["Contaminante Prevalente"] == contaminante_seleccionado]
 
 # Preparar columnas
-aqi_mapa = aqi_filtrado.rename(columns={
-    "AQI_x": "Indice de Calidad del Aire",
-    "latitud": "lat",
-    "longitud": "lon"
-})
+aqi_mapa = aqi_filtrado.rename(columns={ "ESTACION": "Estacion", "AQI_x": "Indice de Calidad del Aire", "TIPO_CONTAMINANTE_x": "Contaminante Prevalente", "latitud": "lat", "longitud": "lon", "NOM_MUN": "Municipio" })
 
 aqi_mapa = aqi_mapa[['Estacion','Indice de Calidad del Aire','Contaminante Prevalente','lat','lon','Municipio']]
 
