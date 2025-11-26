@@ -198,7 +198,7 @@ st.plotly_chart(pie_chart)
 aqi_join = aqi_cdmx.merge(
     df_con_municipios,
     left_on="ESTACION",
-    right_on="Estacion",
+    right_on="ESTACION",
     how="left"
 )
 
