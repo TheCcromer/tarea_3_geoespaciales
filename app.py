@@ -202,12 +202,13 @@ aqi_join = aqi_cdmx.merge(
     how="left"
 )
 
-# Preparar columnas
-aqi_mapa = aqi_filtrado.rename(columns={ "ESTACION": "Estacion", "AQI_x": "Indice de Calidad del Aire", "TIPO_CONTAMINANTE_x": "Contaminante Prevalente", "latitud": "lat", "longitud": "lon", "NOM_MUN": "Municipio" })
-
-aqi_mapa = aqi_mapa[['Estacion','Indice de Calidad del Aire','Contaminante Prevalente','lat','lon','Municipio']]
 
 aqi_filtrado = aqi_join.copy()
+
+# Preparar columnas
+aqi_filtrado = aqi_filtrado.rename(columns={ "ESTACION": "Estacion", "AQI_x": "Indice de Calidad del Aire", "TIPO_CONTAMINANTE_x": "Contaminante Prevalente", "latitud": "lat", "longitud": "lon", "NOM_MUN": "Municipio" })
+
+aqi_filtrado = aqi_filtrado[['Estacion','Indice de Calidad del Aire','Contaminante Prevalente','lat','lon','Municipio']]
 
 
 if municipio_seleccionado != "Todos":
